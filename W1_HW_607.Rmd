@@ -1,0 +1,202 @@
+---
+title: "W1_HW 607"
+author: "Chunhui Zhu"
+date: "August 31, 2017"
+output:
+  html_document: default
+---
+
+Here, you are asked to use R-you may use base functions or packages as you like.
+Mushrooms Dataset. A famous-if slightly moldy-data set about mushrooms can be found in the UCI repository here: https://archive.ics.uci.edu/ml/datasets/Mushroom. 
+
+The fact that this is such a well-known dataset in the data science community makes it a good dataset to use for comparative benchmarking. For example, if someone was working to build a better decision tree algorithm (or other predictive classifier) to analyze categorical data, this dataset could be useful. A typical problem (which is beyond the scope of this assignment!) is to answer the question, "Which other attribute or attributes are the best predictors of whether a particular mushroom is poisonous or edible?"
+
+Your task is to study the dataset and the associated description of the data (i.e. "data dictionary"). You may need to look around a bit, but it's there! You should take the data, and create a data frame with a subset of the columns in the dataset. You should include the column that indicates edible or poisonous and three or four other columns. You should also add meaningful column names and replace the abbreviations used in the data-for example, in the appropriate column, "e" might become "edible." Your deliverable is the R code to perform these transformation tasks.
+
+##R Enviroment
+
+```{r}
+options(repos = c(CRAN = "http://cran.rstudio.com"))
+library('dplyr')
+library ('ggplot2')
+```
+
+
+##Load Mushroom Dataset
+
+```{r}
+Mushroom<-read.csv("https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.data", header= FALSE, sep=",")
+dim(Mushroom)
+```
+
+```{r}
+summary(Mushroom)
+```
+
+
+##Data Wrangling
+
+###Part One: Look for eitable and poisonous mushroom
+
+Attribute Information "https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.names"
+
+####1. Add column names 
+
+```{r}
+names(Mushroom)<-c("classes","cap_shape","cap_surface","cap_color","bruises?","odor", "gill_attachment","gill_spacing","gill_size","gill_color","stalk_shape","stalk_root","stalk_surface_above_ring","stalk_surface_below_ring","stalk_color_above_ring","stalk_color_below_ring","veil_type","veil_color","ring_number","ring_type","spore_print_color","population","habitat")
+
+str(Mushroom)
+```
+
+
+####2. Disjunctive rules for poisonous mushrooms
+    P_1) odor=NOT(almond.OR.anise.OR.none)
+    P_2) spore-print-color=green
+    P_3) odor=none.AND.stalk-surface-below-ring=scaly.AND.(stalk-color-above-ring=NOT.brown) 
+    P_4) habitat=leaves.AND.cap-color=white
+    or P_4') population=clustered.AND.cap_color=white
+    
+```{r}
+#At below,I follow the rule to find the number of eitable mushrooms
+```
+
+```{r}
+#P_1)
+#odor:almond=a,anise=l,creosote=c,fishy=y,foul=f,musty=m,none=n,pungent=p,spicy=s
+e1<-subset(Mushroom,odor=="a"|odor=="l"|odor=="n")
+nrow(e1)
+```
+
+```{r}
+#P_1) -> P_2) 
+#spore-print-color:black=k,brown=n,buff=b,chocolate=h,green=r,orange=o,purple=u,white=w,yellow=y
+e2<-subset(e1,e1$spore_print_color!="r")
+nrow(e2)
+```
+
+```{r}
+#P_1) -> P_2) -> P_3) 
+#stalk-surface-below-ring:fibrous=f,scaly=y,silky=k,smooth=s
+#stalk-color-above-ring:brown=n,buff=b,cinnamon=c,gray=g,orange=o,pink=p,red=e,white=w,yellow=y
+e3<-subset(e2, !(e2$odor=='n' & e2$stalk_surface_below_ring=="y" & e2$stalk_color_above_ring!="n"))
+nrow(e3)
+```
+
+```{r}
+#P_1) -> P_2) -> P_3) -> P_4)
+#habitat: grasses=g,leaves=l,meadows=m,paths=p,urban=u,waste=w,woods=d
+#cap-color:brown=n,buff=b,cinnamon=c,gray=g,green=r,pink=p,purple=u,red=e,white=w,yellow=y
+e4<-subset(e3,!(e3$habitat=="l" & e3$cap_color=="w"))
+nrow(e4)
+```
+
+```{r}
+#P_1) -> P_2) -> P_3) -> P_4')
+#population: abundant=a,clustered=c,numerous=n,scattered=s,several=v,solitary=y
+e4_1<-subset(e3,!(e3$population=="c" & e3$cap_color=="w"))
+nrow(e4_1)
+```
+
+
+####3. Check result: 
+
+Class Distribution:edible: 4208 / poisonous: 3916 / total: 8124
+
+```{r}
+e<-nrow(e4)
+e
+p<-nrow(Mushroom)-nrow(e4)
+p
+nrow(Mushroom)
+```
+
+
+###Part Two: Analysis Attribute: 
+
+####1. Include "odor,population,habitat,cap_color" in dataset
+
+```{r}
+df<-data.frame(Mushroom$classes,Mushroom$odor, Mushroom$cap_color,Mushroom$population, Mushroom$habitat)
+
+#classes:edible=e,poisonous=p
+levels(df$Mushroom.classes) [levels(df$Mushroom.classes)=="p"]  <- "poisonous"
+levels(df$Mushroom.classes) [levels(df$Mushroom.classes)=="e"]  <- "edible"
+
+#odor:almond=a,anise=l,creosote=c,fishy=y,foul=f,musty=m,none=n,pungent=p,spicy=s
+levels(df$Mushroom.odor) [levels(df$Mushroom.odor)=="a"]  <- "almond"
+levels(df$Mushroom.odor) [levels(df$Mushroom.odor)=="l"]  <- "anise"
+levels(df$Mushroom.odor) [levels(df$Mushroom.odor)=="c"]  <- "creosote"
+levels(df$Mushroom.odor) [levels(df$Mushroom.odor)=="y"]  <- "fishy"
+levels(df$Mushroom.odor) [levels(df$Mushroom.odor)=="f"]  <- "foul"
+levels(df$Mushroom.odor) [levels(df$Mushroom.odor)=="m"]  <- "musty"
+levels(df$Mushroom.odor) [levels(df$Mushroom.odor)=="n"]  <- "none"
+levels(df$Mushroom.odor) [levels(df$Mushroom.odor)=="p"]  <- "pungent"
+levels(df$Mushroom.odor) [levels(df$Mushroom.odor)=="s"]  <- "spicy"
+
+#cap-color:brown=n,buff=b,cinnamon=c,gray=g,green=r,pink=p,purple=u,red=e,white=w,yellow=y 
+levels(df$Mushroom.cap_color) [levels(df$Mushroom.cap_color)=="n"]  <- "brown"
+levels(df$Mushroom.cap_color) [levels(df$Mushroom.cap_color)=="b"]  <- "buff"
+levels(df$Mushroom.cap_color) [levels(df$Mushroom.cap_color)=="c"]  <- "cinnamon"
+levels(df$Mushroom.cap_color) [levels(df$Mushroom.cap_color)=="g"]  <- "gray"
+levels(df$Mushroom.cap_color) [levels(df$Mushroom.cap_color)=="r"]  <- "green"
+levels(df$Mushroom.cap_color) [levels(df$Mushroom.cap_color)=="p"]  <- "pink"
+levels(df$Mushroom.cap_color) [levels(df$Mushroom.cap_color)=="u"]  <- "purple"
+levels(df$Mushroom.cap_color) [levels(df$Mushroom.cap_color)=="e"]  <- "red"
+levels(df$Mushroom.cap_color) [levels(df$Mushroom.cap_color)=="w"]  <- "white"
+levels(df$Mushroom.cap_color) [levels(df$Mushroom.cap_color)=="y"]  <- "yellow"
+
+#population: abundant=a,clustered=c,numerous=n,scattered=s,several=v,solitary=y
+levels(df$Mushroom.population) [levels(df$Mushroom.population)=="a"]  <- "abundant"
+levels(df$Mushroom.population) [levels(df$Mushroom.population)=="c"]  <- "clustered"
+levels(df$Mushroom.population) [levels(df$Mushroom.population)=="n"]  <- "numerous"
+levels(df$Mushroom.population) [levels(df$Mushroom.population)=="s"]  <- "scattered"
+levels(df$Mushroom.population) [levels(df$Mushroom.population)=="v"]  <- "several"
+levels(df$Mushroom.population) [levels(df$Mushroom.population)=="y"]  <- "solitary"
+
+#habitat: grasses=g,leaves=l,meadows=m,paths=p,urban=u,waste=w,woods=d
+levels(df$Mushroom.habitat) [levels(df$Mushroom.habitat)=="g"]  <- "grasses"
+levels(df$Mushroom.habitat) [levels(df$Mushroom.habitat)=="l"]  <- "leaves"
+levels(df$Mushroom.habitat) [levels(df$Mushroom.habitat)=="m"]  <- "meadows"
+levels(df$Mushroom.habitat) [levels(df$Mushroom.habitat)=="p"]  <- "paths"
+levels(df$Mushroom.habitat) [levels(df$Mushroom.habitat)=="u"]  <- "urban"
+levels(df$Mushroom.habitat) [levels(df$Mushroom.habitat)=="d"]  <- "woods"
+
+head(df)
+```
+
+
+####2. "odor" distribution
+
+```{r}
+qplot(Mushroom.odor, data = df, fill= Mushroom.classes)
+#odor attribute almost clearify poisonous and edible mushroom, only "none" odor has low possibility to in poisonous mushroom.  
+```
+
+
+####3. "odor vs cap_color" 
+
+```{r}
+qplot(Mushroom.odor, Mushroom.cap_color, data=df, color=Mushroom.classes, main="odor vs cap_color")
+#From cap_color distribution, all colors have edible and poisonous mushrooms. Comparing the odor, it is impossible to classify for edible and poisonous.
+```
+
+
+####4. "odor vs population"
+
+```{r}
+qplot(Mushroom.odor,data = df, fill=Mushroom.population,facets = .~Mushroom.classes)
+#From population distribution, except abundant and numerous are only edible, all esle has distributed to edible and poisonous. Comparing the odor, it is impossilbe to classify for edible and poisonous.
+```
+
+####5. "odor vs habitat"
+
+```{r}
+qplot(Mushroom.odor,data = df, fill=Mushroom.habitat,facets = .~Mushroom.classes)
+#From habitat distribution, every types of habitat has edible and poisonous. Comparing the odor, it is very difficult to classify for edible and poisonous.
+```
+
+
+####6. Conclusion: 
+Among five attributes: odor,population,habitat,cap_color, odor is the best predictors of whether a particular mushroom is poisonous or edible.
+
+
